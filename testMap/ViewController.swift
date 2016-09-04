@@ -10,10 +10,15 @@ import UIKit
 import MapKit
 import CoreLocation
 
-class ViewController: UIViewController, MKMapViewDelegate {
+class ViewController: UIViewController, MKMapViewDelegate,CLLocationManagerDelegate {
     
     var mainMapView : MKMapView!
-
+    //定位管理器
+    let locationManager:CLLocationManager = CLLocationManager()
+    var currLocation : CLLocation!
+    
+    var objectAnnotation : MKPointAnnotation!
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
@@ -22,8 +27,122 @@ class ViewController: UIViewController, MKMapViewDelegate {
         self.mainMapView = MKMapView(frame:self.view.frame)
         self.view.addSubview(self.mainMapView)
         
-        self.mainMapView.delegate = self;
+        self.mainMapView.delegate = self
         
+        self.locationManager.delegate = self
+        locationManager.desiredAccuracy = kCLLocationAccuracyBest
+        //精确到1000米,距离过滤器，定义了设备移动后获得位置信息的最小距离
+        locationManager.distanceFilter = kCLLocationAccuracyKilometer
+
+        //如果是IOS8及以上版本需调用这个方法
+        locationManager.requestAlwaysAuthorization()
+        //使用应用程序期间允许访问位置数据
+        locationManager.requestWhenInUseAuthorization();
+        //启动定位
+        locationManager.startUpdatingLocation()
+        
+        self.objectAnnotation = MKPointAnnotation()
+        
+        //创建一个MKCoordinateSpan对象，设置地图的范围（越小越精确）
+        let latDelta = 0.05
+        let longDelta = 0.05
+        let currentLocationSpan:MKCoordinateSpan = MKCoordinateSpanMake(latDelta, longDelta)
+        
+        //定义地图区域和中心坐标（
+        //使用当前位置
+        //let center:CLLocation = locationManager.location.coordinate
+        //使用自定义位置
+        
+        //let center:CLLocation = CLLocation(latitude: 32.029171, longitude: 118.788231)
+        //let currentRegion:MKCoordinateRegion = MKCoordinateRegion(center: center.coordinate,span: currentLocationSpan)
+        
+        //设置显示区域
+        //self.mainMapView.setRegion(currentRegion, animated: true)
+        
+        /*
+        //创建一个大头针对象
+        let objectAnnotation = MKPointAnnotation()
+        //设置大头针的显示位置
+        objectAnnotation.coordinate = CLLocation(latitude: 32.029171,longitude: 118.788231).coordinate
+        //设置点击大头针之后显示的标题
+        objectAnnotation.title = "南京夫子庙"
+        //设置点击大头针之后显示的描述
+        objectAnnotation.subtitle = "南京市秦淮区秦淮河北岸中华路"
+        //添加大头针
+        self.mainMapView.addAnnotation(objectAnnotation)
+ */
+    }
+    
+    
+    
+    //FIXME: CoreLocationManagerDelegate 中获取到位置信息的处理函数
+    func  locationManager(manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        let location:CLLocation = locations[locations.count-1] as CLLocation
+        currLocation=location
+        if (location.horizontalAccuracy > 0) {
+            self.locationManager.stopUpdatingLocation()
+            print("wgs84坐标系  纬度: \(location.coordinate.latitude) 经度: \(location.coordinate.longitude)")
+            self.locationManager.stopUpdatingLocation()
+            print("结束定位")
+        }
+        
+        
+        //创建一个MKCoordinateSpan对象，设置地图的范围（越小越精确）
+        let latDelta = 0.05
+        let longDelta = 0.05
+        let currentLocationSpan:MKCoordinateSpan = MKCoordinateSpanMake(latDelta, longDelta)
+        
+        //定义地图区域和中心坐标（
+        //使用当前位置
+        let center:CLLocation = location
+        //使用自定义位置
+        
+        //let center:CLLocation = CLLocation(latitude: 32.029171, longitude: 118.788231)
+        let currentRegion:MKCoordinateRegion = MKCoordinateRegion(center: center.coordinate,span: currentLocationSpan)
+        
+        self.mainMapView.setRegion(currentRegion, animated: true)
+        
+        
+        
+        
+        //使用坐标，获取地址
+        let geocoder = CLGeocoder()
+        var p:CLPlacemark?
+        geocoder.reverseGeocodeLocation(currLocation, completionHandler: { (placemarks, error) -> Void in
+            if error != nil {
+                print("获取地址失败: \(error!.localizedDescription)")
+                return
+            }
+            let pm = placemarks! as [CLPlacemark]
+            if (pm.count > 0){
+                p = placemarks![0] as CLPlacemark
+                print("地址:\(p?.name!)")
+                
+                //创建一个大头针对象
+                
+                //设置大头针的显示位置
+                self.objectAnnotation.coordinate = center.coordinate
+                //设置点击大头针之后显示的标题
+                self.objectAnnotation.title = p?.name!
+                //设置点击大头针之后显示的描述
+                //self.objectAnnotation.subtitle = "test"
+                //添加大头针
+                self.mainMapView.addAnnotation(self.objectAnnotation)
+                
+                
+            }else{
+                print("没地址!")
+            }
+        })
+        
+        
+
+        
+
+    }
+    //FIXME:  获取位置信息失败
+    func  locationManager(manager: CLLocationManager, didFailWithError error: NSError) {
+        print(error)
     }
     
     
